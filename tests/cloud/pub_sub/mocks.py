@@ -1,7 +1,8 @@
 import google.api_core.exceptions
 
-from octue.cloud.pub_sub import Subscription, Topic
 from octue.cloud.pub_sub.service import Service
+from octue.cloud.pub_sub.subscription import Subscription
+from octue.cloud.pub_sub.topic import Topic
 
 
 MESSAGES = {}

@@ -9,17 +9,15 @@ from google.cloud import pubsub_v1
 
 from octue import exceptions
 from octue.cloud.credentials import GCPCredentialsManager
-from octue.cloud.pub_sub import Subscription, Topic
+from octue.cloud.pub_sub import ANSWERS_NAMESPACE
+from octue.cloud.pub_sub.subscription import Subscription
+from octue.cloud.pub_sub.topic import Topic
 from octue.exceptions import FileLocationError
 from octue.mixins import CoolNameable
 from octue.resources.manifest import Manifest
 
 
 logger = logging.getLogger(__name__)
-
-
-OCTUE_NAMESPACE = "octue.services"
-ANSWERS_NAMESPACE = "answers"
 
 
 # Switch message batching off by setting max_messages to 1. This minimises latency and is recommended for
@@ -76,10 +74,10 @@ class Service(CoolNameable):
     def serve(self, timeout=None, delete_topic_and_subscription_on_exit=False):
         """Start the Service as a server, waiting to accept questions from any other Service using Google Pub/Sub on
         the same Google Cloud Platform project. Questions are responded to asynchronously."""
-        topic = Topic(name=self.id, namespace=OCTUE_NAMESPACE, service=self)
+        topic = Topic(name=self.id, service=self)
         topic.create(allow_existing=True)
 
-        subscription = Subscription(name=self.id, topic=topic, namespace=OCTUE_NAMESPACE, service=self)
+        subscription = Subscription(name=self.id, topic=topic, service=self)
         subscription.create(allow_existing=True)
 
         future = self.subscriber.subscribe(subscription=subscription.path, callback=self.receive_question_then_answer)
@@ -108,9 +106,7 @@ class Service(CoolNameable):
         asker). Answers are published to a topic whose name is generated from the UUID sent with the question, and are
         in the format specified in the Service's Twine file.
         """
-        topic = Topic(
-            name=".".join((self.id, ANSWERS_NAMESPACE, question_uuid)), namespace=OCTUE_NAMESPACE, service=self
-        )
+        topic = Topic(name=".".join((self.id, ANSWERS_NAMESPACE, question_uuid)), service=self)
         analysis = self.run_function(input_values=data["input_values"], input_manifest=data["input_manifest"])
 
         if analysis.output_manifest is None:
@@ -140,20 +136,19 @@ class Service(CoolNameable):
                 "cloud locations."
             )
 
-        question_topic = Topic(name=service_id, namespace=OCTUE_NAMESPACE, service=self)
+        question_topic = Topic(name=service_id, service=self)
         if not question_topic.exists():
             raise exceptions.ServiceNotFound(f"Service with ID {service_id!r} cannot be found.")
 
         question_uuid = str(int(uuid.uuid4()))
 
         response_topic_and_subscription_name = ".".join((service_id, ANSWERS_NAMESPACE, question_uuid))
-        response_topic = Topic(name=response_topic_and_subscription_name, namespace=OCTUE_NAMESPACE, service=self)
+        response_topic = Topic(name=response_topic_and_subscription_name, service=self)
         response_topic.create(allow_existing=False)
 
         response_subscription = Subscription(
             name=response_topic_and_subscription_name,
             topic=response_topic,
-            namespace=OCTUE_NAMESPACE,
             service=self,
         )
         response_subscription.create(allow_existing=False)

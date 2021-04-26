@@ -1,6 +1,8 @@
 import logging
 import google.api_core.exceptions
 
+from octue.cloud.pub_sub import OCTUE_NAMESPACE
+
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +12,7 @@ class Topic:
     necessarily already exist on the Google Pub/Sub servers.
     """
 
-    def __init__(self, name, namespace, service):
+    def __init__(self, name, service, namespace=OCTUE_NAMESPACE):
         if name.startswith(namespace):
             self.name = name
         else:
