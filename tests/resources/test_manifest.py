@@ -51,7 +51,7 @@ class TestManifest(BaseTestCase):
         for key in manifest.datasets.keys():
             self.assertEqual(manifest.datasets[key].name, deserialised_manifest.datasets[key].name)
             self.assertEqual(manifest.datasets[key].id, deserialised_manifest.datasets[key].id)
-            self.assertEqual(manifest.datasets[key].absolute_path, deserialised_manifest.datasets[key].absolute_path)
+            self.assertEqual(manifest.datasets[key].path, deserialised_manifest.datasets[key].path)
 
     def test_to_cloud(self):
         """Test that a manifest can be uploaded to the cloud as a serialised JSON file of the Manifest instance via

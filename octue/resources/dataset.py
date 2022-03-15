@@ -17,7 +17,7 @@ from octue.resources.tag import TagDict
 DATAFILES_DIRECTORY = "datafiles"
 
 
-class Dataset(Labelable, Taggable, Serialisable, Pathable, Identifiable, Hashable):
+class Dataset(Labelable, Taggable, Serialisable, Identifiable, Hashable):
     """A representation of a dataset, containing files, labels, etc
 
     This is used to read a list of files (and their associated properties) into octue analysis, or to compile a
@@ -30,21 +30,21 @@ class Dataset(Labelable, Taggable, Serialisable, Pathable, Identifiable, Hashabl
     _ATTRIBUTES_TO_HASH = ("files",)
     _SERIALISE_FIELDS = "files", "name", "labels", "tags", "id", "path"
 
-    def __init__(self, files=None, name=None, id=None, path=None, path_from=None, tags=None, labels=None, **kwargs):
-        super().__init__(name=name, id=id, tags=tags, labels=labels, path=path, path_from=path_from)
+    def __init__(self, files=None, name=None, id=None, path=None, tags=None, labels=None, **kwargs):
+        super().__init__(name=name, id=id, tags=tags, labels=labels)
+        self.files = FilterSet()
+        self._path = path
 
         # TODO The decoders aren't being used; utils.decoders.OctueJSONDecoder should be used in twined
         #  so that resources get automatically instantiated.
         #  Add a proper `decoder` argument  to the load_json utility in twined so that datasets, datafiles and manifests
         #  get initialised properly, then remove this hackjob.
-        self.files = FilterSet()
-        self._cloud_path = None
 
         for file in files or []:
             if isinstance(file, Datafile):
                 self.files.add(file)
             else:
-                self.files.add(Datafile.deserialise(file, path_from=self))
+                self.files.add(Datafile.deserialise(file))
 
         self.__dict__.update(**kwargs)
 
@@ -144,7 +144,7 @@ class Dataset(Labelable, Taggable, Serialisable, Pathable, Identifiable, Hashabl
             executor.map(upload, files_and_paths)
 
         self._upload_dataset_metadata(cloud_path)
-        self._cloud_path = cloud_path
+        self._path = cloud_path
         return cloud_path
 
     @property
@@ -153,28 +153,21 @@ class Dataset(Labelable, Taggable, Serialisable, Pathable, Identifiable, Hashabl
 
         :return str:
         """
-        return self._name or os.path.split(os.path.abspath(os.path.split(self.path)[-1]))[-1]
+        if self._name:
+            return self._name
+
+        if self.path:
+            return os.path.split(os.path.abspath(os.path.split(self.path)[-1]))[-1]
+
+        return None
 
     @property
-    def cloud_path(self):
-        """Get the cloud path of the dataset.
+    def path(self):
+        """Get the path of the dataset.
 
         :return str|None:
         """
-        return self._cloud_path
-
-    @cloud_path.setter
-    def cloud_path(self, path):
-        """Set the cloud path of the dataset.
-
-        :param str|None path:
-        :return None:
-        """
-        if path is None:
-            self._cloud_path = None
-            return
-
-        self.to_cloud(cloud_path=path)
+        return self._path
 
     @property
     def all_files_are_in_cloud(self):
@@ -273,7 +266,6 @@ class Dataset(Labelable, Taggable, Serialisable, Pathable, Identifiable, Hashabl
         """
         serialised_dataset = self.to_primitive()
         serialised_dataset["files"] = sorted(datafile.cloud_path for datafile in self.files)
-        del serialised_dataset["path"]
 
         GoogleCloudStorageClient().upload_from_string(
             string=json.dumps(serialised_dataset),

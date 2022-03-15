@@ -89,7 +89,7 @@ class Manifest(Pathable, Serialisable, Identifiable, Hashable):
                 dataset_path = dataset.to_cloud(storage.path.generate_gs_path(bucket_name, output_directory))
                 datasets[key] = dataset_path
             else:
-                datasets[key] = dataset.cloud_path or dataset.absolute_path
+                datasets[key] = dataset.path
 
         serialised_manifest = self.to_primitive()
         serialised_manifest["datasets"] = datasets
@@ -170,11 +170,11 @@ class Manifest(Pathable, Serialisable, Identifiable, Hashable):
                     # If the path is not a cloud path or an absolute local path:
                     if not os.path.isabs(dataset["path"]) and not storage.path.is_qualified_cloud_path(dataset["path"]):
                         path = dataset.pop("path")
-                        self.datasets[key] = Dataset(**dataset, path=path, path_from=self)
+                        self.datasets[key] = Dataset(**dataset, path=path)
 
                     # If the path is a cloud path or an absolute local path:
                     else:
                         self.datasets[key] = Dataset(**dataset)
 
                 else:
-                    self.datasets[key] = Dataset(**dataset, path=key, path_from=self)
+                    self.datasets[key] = Dataset(**dataset, path=key)
